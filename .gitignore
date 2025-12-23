@@ -37,7 +37,7 @@ yarn-error.log*
 .vercel
 
 # prisma
-prisma/dev.db
+# prisma/dev.db - COMMITTED for demo/seeded data
 prisma/dev.db-journal
 
 # typescript
