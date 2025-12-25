@@ -31,6 +31,14 @@ model User {
   intentions         Intention[]
   manifestations     Manifestation[]
   moodLogs           MoodLog[]
+  // Self-service tracking relations
+  selfAssessments    SelfAssessment[]
+  weeklyGoals        WeeklyGoal[]
+  goalTasks          GoalTask[]
+  focusPillars       FocusPillar[]
+  insights           UserInsight[]
+  reminderSettings   ReminderSettings?
+  weeklySummaries    WeeklySummary[]
 }
 
 // The 11 transformation pillars
@@ -52,6 +60,7 @@ model Pillar {
 
   // Relations
   dailyCheckins DailyCheckin[]
+  focusPillars  FocusPillar[]
 }
 
 // User's 48-day journey
@@ -230,4 +239,183 @@ model MoodLog {
 
   @@index([userId])
   @@index([logDate])
+}
+
+// ============================================
+// SELF-SERVICE TRACKING MODELS
+// ============================================
+
+// Baseline and periodic self-assessment
+model SelfAssessment {
+  id                  String   @id @default(cuid())
+  userId              String
+  assessmentDate      DateTime
+  assessmentType      String   // "baseline", "weekly", "milestone", "final"
+  dayNumber           Int?     // Day in journey (1, 7, 14, 21, 28, 35, 42, 48)
+  stressLevel         Int      // 1-10
+  sleepQuality        Int      // 1-10
+  energyLevel         Int      // 1-10
+  mentalClarity       Int      // 1-10
+  physicalFitness     Int      // 1-10
+  emotionalStability  Int      // 1-10
+  spiritualConnection Int      // 1-10
+  lifeSatisfaction    Int      // 1-10
+  focusLevel          Int?     // 1-10
+  overallWellbeing    Int?     // 1-10
+  biggestChallenge    String?
+  biggestWin          String?
+  oneWordFeeling      String?
+  notes               String?
+  createdAt           DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([assessmentType])
+}
+
+// Weekly goals settings
+model WeeklyGoal {
+  id              String   @id @default(cuid())
+  userId          String
+  weekNumber      Int      // Week 1-7 of journey
+  weekStartDate   DateTime
+  targetPillars   Int      // Target number of pillars per day
+  focusCategory   String?  // "body", "mind", "spirit", or null for all
+  weeklyIntention String?
+  reflectionNotes String?
+  achieved        Boolean  @default(false)
+  actualAverage   Float?   // Actual average pillars per day
+  completionRate  Float?   // Percentage of target achieved
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekNumber])
+  @@index([userId])
+}
+
+// Individual goal tasks
+model GoalTask {
+  id          String    @id @default(cuid())
+  userId      String
+  weekNumber  Int       // Week number in journey
+  title       String
+  description String?
+  pillarId    Int?      // Optional link to a pillar
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([weekNumber])
+}
+
+// Focus pillars (user's top 3 priority)
+model FocusPillar {
+  id        String   @id @default(cuid())
+  userId    String
+  pillarId  Int
+  priority  Int      // 1, 2, or 3
+  reason    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pillar Pillar @relation(fields: [pillarId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pillarId])
+  @@unique([userId, priority])
+  @@index([userId])
+}
+
+// Automated insights
+model UserInsight {
+  id          String   @id @default(cuid())
+  userId      String
+  insightType String   // "pattern", "strength", "weakness", "recommendation", "milestone"
+  category    String?  // "streak", "pillar", "mood", "consistency"
+  title       String
+  description String
+  data        String?  // JSON data for visualization
+  priority    Int      @default(0) // Higher = more important
+  isRead      Boolean  @default(false)
+  isDismissed Boolean  @default(false)
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+// Reminder settings
+model ReminderSettings {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  // Morning reminders
+  morningEnabled       Boolean  @default(true)
+  morningTime          String   @default("05:00") // HH:mm format
+  // Evening reminders
+  eveningEnabled       Boolean  @default(true)
+  eveningTime          String   @default("21:00")
+  // Sandhya reminders (3x daily)
+  sandhyaEnabled       Boolean  @default(false)
+  sandhyaMorningTime   String   @default("06:00")
+  sandhyaNoonTime      String   @default("12:00")
+  sandhyaEveningTime   String   @default("18:00")
+  // Streak protection
+  streakWarningEnabled Boolean  @default(true)
+  streakWarningTime    String   @default("20:00")
+  // Email preferences
+  dailyDigestEnabled   Boolean  @default(false)
+  weeklyDigestEnabled  Boolean  @default(true)
+  weeklyDigestDay      String   @default("sunday") // day of week
+  // Notification channels
+  emailNotifications   Boolean  @default(true)
+  pushNotifications    Boolean  @default(false)
+  // Timezone
+  timezone             String   @default("UTC")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Weekly summary snapshots (for historical data)
+model WeeklySummary {
+  id                  String   @id @default(cuid())
+  userId              String
+  weekNumber          Int
+  weekStartDate       DateTime
+  weekEndDate         DateTime
+  totalPillarsCompleted Int
+  possiblePillars     Int
+  completionRate      Float
+  averageMood         Float?
+  averageEnergy       Float?
+  streakDays          Int
+  karmaEarned         Int
+  topPillar           String?  // Most completed pillar
+  weakestPillar       String?  // Least completed pillar
+  moodTrend           String?  // "improving", "stable", "declining"
+  insights            String?  // JSON array of insight strings
+  createdAt           DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekNumber])
+  @@index([userId])
 }

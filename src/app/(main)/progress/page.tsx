@@ -1,9 +1,15 @@
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { PILLARS, TOTAL_JOURNEY_DAYS } from "@/constants/pillars";
-import { TrendingUp, Calendar, Award, Target } from "lucide-react";
+import { Award } from "lucide-react";
+import {
+  PillarRadarChart,
+  WeeklyTrendChart,
+  CalendarHeatmap,
+  ConsistencyScore,
+  InsightList,
+} from "@/components/features/analytics";
 
 export default async function ProgressPage() {
   const user = await requireAuth();
@@ -11,45 +17,25 @@ export default async function ProgressPage() {
 
   // Get user's journey
   const journey = await prisma.journey.findFirst({
-    where: {
-      userId,
-      isActive: true,
-    },
+    where: { userId, isActive: true },
   });
 
   // Get all check-ins for this journey
-  let checkins: { checkinDate: Date; pillar: { slug: string; name: string } }[] = [];
-  if (journey) {
-    checkins = await prisma.dailyCheckin.findMany({
-      where: {
-        userId,
-        completed: true,
-      },
-      include: {
-        pillar: {
-          select: {
-            slug: true,
-            name: true,
-          },
-        },
-      },
-    });
-  }
+  const checkins = journey
+    ? await prisma.dailyCheckin.findMany({
+        where: { userId, completed: true },
+        include: { pillar: { select: { slug: true, name: true } } },
+        orderBy: { checkinDate: "asc" },
+      })
+    : [];
 
   // Get streak
-  let streak: { currentStreak: number; longestStreak: number } | null = null;
-  if (journey) {
-    streak = await prisma.streak.findFirst({
-      where: {
-        userId,
-        journeyId: journey.id,
-      },
-      select: {
-        currentStreak: true,
-        longestStreak: true,
-      },
-    });
-  }
+  const streak = journey
+    ? await prisma.streak.findFirst({
+        where: { userId, journeyId: journey.id },
+        select: { currentStreak: true, longestStreak: true },
+      })
+    : null;
 
   // Get total karma
   const karmaTransactions = await prisma.karmaTransaction.findMany({
@@ -61,9 +47,7 @@ export default async function ProgressPage() {
   // Get badges
   const userBadges = await prisma.userBadge.findMany({
     where: { userId },
-    include: {
-      badge: true,
-    },
+    include: { badge: true },
   });
 
   // Calculate current day
@@ -77,231 +61,290 @@ export default async function ProgressPage() {
       )
     : 0;
 
-  // Calculate pillar completion stats
+  // Calculate current week
+  const currentWeek = Math.ceil(currentDay / 7);
+
+  // Get today's date for comparison
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Get today's check-ins
+  const todayCheckins = checkins.filter((c) => {
+    const checkinDate = new Date(c.checkinDate);
+    checkinDate.setHours(0, 0, 0, 0);
+    return checkinDate.getTime() === today.getTime();
+  });
+
+  // Calculate pillar stats for radar chart
   const pillarStats = PILLARS.map((pillar) => {
     const completions = checkins.filter((c) => c.pillar.slug === pillar.slug).length;
     return {
-      ...pillar,
-      completions,
-      percentage: currentDay > 0 ? Math.round((completions / currentDay) * 100) : 0,
+      name: pillar.name,
+      shortName: pillar.name.split(" ")[0].substring(0, 8),
+      completion: currentDay > 0 ? Math.round((completions / currentDay) * 100) : 0,
+      category: pillar.category,
+      color: pillar.color,
     };
   });
 
-  // Get unique completed days
-  const completedDays = new Set(
-    checkins.map((c) => c.checkinDate.toISOString().split("T")[0])
-  ).size;
+  // Calculate overall consistency score
+  const totalPossibleCheckins = currentDay * PILLARS.length;
+  const totalCompletedCheckins = checkins.length;
+  const consistencyScore =
+    totalPossibleCheckins > 0
+      ? Math.round((totalCompletedCheckins / totalPossibleCheckins) * 100)
+      : 0;
+
+  // Prepare weekly trend data (last 7 days)
+  const weeklyTrendData = [];
+  const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    date.setHours(0, 0, 0, 0);
+
+    const dayCheckins = checkins.filter((c) => {
+      const checkinDate = new Date(c.checkinDate);
+      checkinDate.setHours(0, 0, 0, 0);
+      return checkinDate.getTime() === date.getTime();
+    });
+
+    weeklyTrendData.push({
+      date: date.toISOString().split("T")[0],
+      dayLabel: dayLabels[date.getDay() === 0 ? 6 : date.getDay() - 1],
+      pillarsCompleted: dayCheckins.length,
+      totalPillars: PILLARS.length,
+      percentage: Math.round((dayCheckins.length / PILLARS.length) * 100),
+    });
+  }
+
+  // Calculate previous week average for comparison
+  let previousWeekTotal = 0;
+  let previousWeekDays = 0;
+  for (let i = 13; i >= 7; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    date.setHours(0, 0, 0, 0);
+
+    const dayCheckins = checkins.filter((c) => {
+      const checkinDate = new Date(c.checkinDate);
+      checkinDate.setHours(0, 0, 0, 0);
+      return checkinDate.getTime() === date.getTime();
+    });
+
+    previousWeekTotal += dayCheckins.length;
+    previousWeekDays++;
+  }
+  const previousWeekAverage =
+    previousWeekDays > 0
+      ? Math.round((previousWeekTotal / previousWeekDays / PILLARS.length) * 100)
+      : 0;
+
+  // Prepare calendar heatmap data
+  const calendarData = [];
+  if (journey) {
+    const journeyStart = new Date(journey.startDate);
+    journeyStart.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < TOTAL_JOURNEY_DAYS; i++) {
+      const date = new Date(journeyStart);
+      date.setDate(date.getDate() + i);
+      date.setHours(0, 0, 0, 0);
+
+      const dayCheckins = checkins.filter((c) => {
+        const checkinDate = new Date(c.checkinDate);
+        checkinDate.setHours(0, 0, 0, 0);
+        return checkinDate.getTime() === date.getTime();
+      });
+
+      calendarData.push({
+        date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        dayNumber: i + 1,
+        pillarsCompleted: dayCheckins.length,
+        totalPillars: PILLARS.length,
+        percentage: Math.round((dayCheckins.length / PILLARS.length) * 100),
+        isToday: date.getTime() === today.getTime(),
+        isFuture: date.getTime() > today.getTime(),
+      });
+    }
+  }
+
+  // Generate insights based on data
+  const insights = [];
+
+  // Strength insight
+  const strongestPillar = pillarStats.reduce((max, p) =>
+    p.completion > max.completion ? p : max
+  );
+  if (strongestPillar.completion >= 70) {
+    insights.push({
+      id: "strength-1",
+      type: "strength" as const,
+      title: `Strong in ${strongestPillar.name}`,
+      description: `You've completed ${strongestPillar.name} ${strongestPillar.completion}% of the time. Keep it up!`,
+    });
+  }
+
+  // Weakness insight
+  const weakestPillar = pillarStats.reduce((min, p) =>
+    p.completion < min.completion ? p : min
+  );
+  if (weakestPillar.completion < 50 && currentDay > 3) {
+    insights.push({
+      id: "weakness-1",
+      type: "weakness" as const,
+      title: `${weakestPillar.name} needs attention`,
+      description: `Only ${weakestPillar.completion}% completion. Try setting a reminder for this pillar.`,
+      actionText: "Set reminder",
+    });
+  }
+
+  // Streak insight
+  if (streak && streak.currentStreak >= 7) {
+    insights.push({
+      id: "streak-1",
+      type: "milestone" as const,
+      title: `${streak.currentStreak} day streak!`,
+      description: "Amazing consistency! You're building powerful habits.",
+    });
+  }
+
+  // Trend insight
+  const currentWeekAvg = weeklyTrendData.reduce((sum, d) => sum + d.percentage, 0) / 7;
+  if (currentWeekAvg > previousWeekAverage + 10) {
+    insights.push({
+      id: "trend-1",
+      type: "pattern" as const,
+      title: "Improving trend",
+      description: `Your completion rate is ${Math.round(currentWeekAvg - previousWeekAverage)}% higher than last week!`,
+    });
+  }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Your Progress</h1>
-        <p className="text-gray-600 mt-2">Track your transformation journey</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Your Progress</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">
+          Track your transformation journey
+        </p>
       </div>
 
-      {/* Overview stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Current Day</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {currentDay} / {TOTAL_JOURNEY_DAYS}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Consistency Score - Full width on mobile */}
+      <ConsistencyScore
+        currentScore={consistencyScore}
+        previousScore={previousWeekAverage}
+        streakDays={streak?.currentStreak || 0}
+        totalKarma={totalKarma}
+        todayCompleted={todayCheckins.length}
+        todayTotal={PILLARS.length}
+      />
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Current Streak</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {streak?.currentStreak || 0} days
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center">
-                <Target className="w-6 h-6 text-violet-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Total Karma</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {totalKarma.toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
-                <Award className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Badges Earned</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {userBadges?.length || 0}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Charts Row - Stack on mobile, side by side on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <WeeklyTrendChart
+          data={weeklyTrendData}
+          currentWeek={currentWeek}
+          previousWeekAverage={previousWeekAverage}
+        />
+        <PillarRadarChart data={pillarStats} />
       </div>
 
-      {/* Journey progress */}
+      {/* Calendar Heatmap */}
+      <CalendarHeatmap data={calendarData} totalDays={TOTAL_JOURNEY_DAYS} />
+
+      {/* Insights Section */}
+      {insights.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Insights</h2>
+          <InsightList insights={insights} maxVisible={3} />
+        </div>
+      )}
+
+      {/* Pillar Breakdown */}
       <Card>
-        <CardHeader>
-          <CardTitle>48-Day Journey Progress</CardTitle>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base sm:text-lg">Pillar Consistency</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-600">Overall completion</span>
-              <span className="font-medium text-amber-600">
-                {Math.round((currentDay / TOTAL_JOURNEY_DAYS) * 100)}%
-              </span>
-            </div>
-            <Progress
-              value={currentDay}
-              max={TOTAL_JOURNEY_DAYS}
-              size="lg"
-              variant="gradient"
-            />
-          </div>
+          <div className="space-y-3">
+            {pillarStats
+              .sort((a, b) => b.completion - a.completion)
+              .map((pillar) => {
+                const originalPillar = PILLARS.find(
+                  (p) => p.name === pillar.name
+                );
+                const Icon = originalPillar?.icon;
 
-          <div className="grid grid-cols-8 gap-1 mt-6">
-            {Array.from({ length: TOTAL_JOURNEY_DAYS }, (_, i) => {
-              const day = i + 1;
-              const isCompleted = day <= completedDays;
-              const isCurrent = day === currentDay;
-              const isFuture = day > currentDay;
-
-              return (
-                <div
-                  key={day}
-                  className={`aspect-square rounded-md flex items-center justify-center text-xs font-medium
-                    ${
-                      isCompleted
-                        ? "bg-green-500 text-white"
-                        : isCurrent
-                        ? "bg-amber-500 text-white ring-2 ring-amber-300"
-                        : isFuture
-                        ? "bg-gray-100 text-gray-400"
-                        : "bg-red-100 text-red-600"
-                    }`}
-                  title={`Day ${day}`}
-                >
-                  {day}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="flex items-center gap-6 mt-4 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-green-500" />
-              <span className="text-gray-600">Completed</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-amber-500" />
-              <span className="text-gray-600">Current</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-gray-100" />
-              <span className="text-gray-600">Upcoming</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Pillar completion rates */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Pillar Consistency</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {pillarStats.map((pillar) => {
-              const Icon = pillar.icon;
-              return (
-                <div key={pillar.id} className="flex items-center gap-4">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: `${pillar.color}20` }}
-                  >
-                    <Icon className="w-5 h-5" style={{ color: pillar.color }} />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-900">
-                        {pillar.name}
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        {pillar.completions}/{currentDay} days ({pillar.percentage}%)
-                      </span>
+                return (
+                  <div key={pillar.name} className="flex items-center gap-3">
+                    <div
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: `${pillar.color}20` }}
+                    >
+                      {Icon && (
+                        <Icon
+                          className="w-4 h-4 sm:w-5 sm:h-5"
+                          style={{ color: pillar.color }}
+                        />
+                      )}
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{
-                          width: `${pillar.percentage}%`,
-                          backgroundColor: pillar.color,
-                        }}
-                      />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between mb-1">
+                        <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
+                          {pillar.name}
+                        </span>
+                        <span className="text-xs sm:text-sm text-gray-500 flex-shrink-0 ml-2">
+                          {pillar.completion}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 sm:h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${pillar.completion}%`,
+                            backgroundColor: pillar.color,
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </CardContent>
       </Card>
 
       {/* Badges */}
       <Card>
-        <CardHeader>
-          <CardTitle>Badges & Achievements</CardTitle>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base sm:text-lg">Badges & Achievements</CardTitle>
         </CardHeader>
         <CardContent>
           {userBadges && userBadges.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
               {userBadges.map((ub) => (
                 <div
                   key={ub.id}
-                  className="flex flex-col items-center p-4 rounded-xl bg-amber-50 text-center"
+                  className="flex flex-col items-center p-3 sm:p-4 rounded-xl bg-amber-50 text-center"
                 >
-                  <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mb-2">
-                    <Award className="w-8 h-8 text-amber-600" />
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-amber-100 flex items-center justify-center mb-2">
+                    <Award className="w-6 h-6 sm:w-8 sm:h-8 text-amber-600" />
                   </div>
-                  <h4 className="font-medium text-gray-900">{ub.badge?.name}</h4>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <h4 className="font-medium text-gray-900 text-xs sm:text-sm">
+                    {ub.badge?.name}
+                  </h4>
+                  <p className="text-[10px] sm:text-xs text-gray-500 mt-1 line-clamp-2">
                     {ub.badge?.description}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              <Award className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Complete pillars to earn badges!</p>
+            <div className="text-center py-6 sm:py-8 text-gray-500">
+              <Award className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 opacity-50" />
+              <p className="text-sm">Complete pillars to earn badges!</p>
             </div>
           )}
         </CardContent>

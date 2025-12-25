@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
+import { MobileNav } from "@/components/layout/mobile-nav";
 
 export default async function MainLayout({
   children,
@@ -23,8 +24,12 @@ export default async function MainLayout({
           }}
         />
 
-        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+        {/* Main content with bottom padding for mobile nav */}
+        <main className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">{children}</main>
       </div>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileNav />
     </div>
   );
 }

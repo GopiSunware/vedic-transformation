@@ -9,7 +9,48 @@ import {
   Sparkles,
   ArrowRight,
   Check,
+  Apple,
+  Dumbbell,
+  Moon,
+  Wind,
+  Sun,
 } from "lucide-react";
+import { YouTubeIntro } from "@/components/features/landing/youtube-intro";
+
+const pillarsData = {
+  body: {
+    title: "Body",
+    subtitle: "Physical transformation & vitality",
+    color: "from-red-500 to-orange-500",
+    pillars: [
+      { icon: Sunrise, name: "5 AM Initiation", sanskrit: "Brahma Muhurta", desc: "Wake before sunrise to harness the sacred morning hours", color: "#FFD700" },
+      { icon: Apple, name: "Mindful Nutrition", sanskrit: "Ahara", desc: "Practice conscious eating and intermittent fasting", color: "#FF6B35" },
+      { icon: Dumbbell, name: "Sacred Movement", sanskrit: "Vyayama", desc: "30 minutes of physical exercise or yoga asanas", color: "#EF4444" },
+      { icon: Moon, name: "Sleep Mastery", sanskrit: "Nidra", desc: "Optimize your sleep for physical and mental restoration", color: "#6366F1" },
+    ],
+  },
+  mind: {
+    title: "Mind",
+    subtitle: "Mental clarity & emotional balance",
+    color: "from-violet-500 to-purple-500",
+    pillars: [
+      { icon: Brain, name: "Thought Power", sanskrit: "Sankalpa", desc: "Set daily intentions and cultivate positive thought patterns", color: "#8B5CF6" },
+      { icon: Wind, name: "Pranayama", sanskrit: "Prana Vidya", desc: "Practice breath control and meditation techniques", color: "#06B6D4" },
+      { icon: Heart, name: "Healing Meditation", sanskrit: "Chikitsa Dhyana", desc: "Guided meditation for physical and emotional healing", color: "#EC4899" },
+      { icon: Sparkles, name: "Gratitude Practice", sanskrit: "Kritajna", desc: "Express gratitude for three things each day", color: "#F59E0B" },
+    ],
+  },
+  spirit: {
+    title: "Spirit",
+    subtitle: "Spiritual awakening & divine connection",
+    color: "from-amber-500 to-yellow-500",
+    pillars: [
+      { icon: Sun, name: "Sandhya Meditation", sanskrit: "Sandhyavandana", desc: "Align body rhythms with nature (3x daily)", color: "#FFC107" },
+      { icon: Sparkles, name: "Connection to Brahman", sanskrit: "Brahma Sambandha", desc: "Expand consciousness, connect with universal energy", color: "#673AB7" },
+      { icon: Sparkles, name: "Divine Manifestation", sanskrit: "Sankalpa Shakti", desc: "Set intentions and manifest your highest goals", color: "#A855F7" },
+    ],
+  },
+};
 
 export default function HomePage() {
   return (
@@ -91,10 +132,13 @@ export default function HomePage() {
               Free to start
             </div>
           </div>
+
+          {/* Introduction Video */}
+          <YouTubeIntro className="mt-16" />
         </div>
       </header>
 
-      {/* Features Section */}
+      {/* Features Section - 11 Pillars by Category */}
       <section id="pillars" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -107,51 +151,100 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                icon: Sunrise,
-                title: "5 AM Initiation",
-                desc: "Activate clarity, discipline & emotional balance",
-                color: "#FFD700",
-              },
-              {
-                icon: Brain,
-                title: "Breathing + Meditation",
-                desc: "Stabilize stress hormones, activate focus & calm",
-                color: "#00BCD4",
-              },
-              {
-                icon: Heart,
-                title: "Healing Meditation",
-                desc: "Inner rewiring through deep meditation",
-                color: "#E91E63",
-              },
-            ].map((feature, i) => (
-              <Card key={i} className="hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
-                    style={{ backgroundColor: `${feature.color}20` }}
-                  >
-                    <feature.icon
-                      className="w-6 h-6"
-                      style={{ color: feature.color }}
-                    />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {feature.title}
-                  </h3>
-                  <p className="text-gray-600 mt-2">{feature.desc}</p>
-                </CardContent>
-              </Card>
-            ))}
+          {/* Body Section */}
+          <div className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${pillarsData.body.color} flex items-center justify-center`}>
+                <Dumbbell className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900">{pillarsData.body.title}</h3>
+                <p className="text-gray-600">{pillarsData.body.subtitle}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {pillarsData.body.pillars.map((pillar, i) => (
+                <Card key={i} className="hover:shadow-lg transition-shadow border-l-4" style={{ borderLeftColor: pillar.color }}>
+                  <CardContent className="p-5">
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center mb-3"
+                      style={{ backgroundColor: `${pillar.color}20` }}
+                    >
+                      <pillar.icon className="w-5 h-5" style={{ color: pillar.color }} />
+                    </div>
+                    <h4 className="font-semibold text-gray-900">{pillar.name}</h4>
+                    <p className="text-xs text-amber-600 font-medium mb-2">{pillar.sanskrit}</p>
+                    <p className="text-sm text-gray-600">{pillar.desc}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
 
-          <div className="mt-12 text-center">
+          {/* Mind Section */}
+          <div className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${pillarsData.mind.color} flex items-center justify-center`}>
+                <Brain className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900">{pillarsData.mind.title}</h3>
+                <p className="text-gray-600">{pillarsData.mind.subtitle}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {pillarsData.mind.pillars.map((pillar, i) => (
+                <Card key={i} className="hover:shadow-lg transition-shadow border-l-4" style={{ borderLeftColor: pillar.color }}>
+                  <CardContent className="p-5">
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center mb-3"
+                      style={{ backgroundColor: `${pillar.color}20` }}
+                    >
+                      <pillar.icon className="w-5 h-5" style={{ color: pillar.color }} />
+                    </div>
+                    <h4 className="font-semibold text-gray-900">{pillar.name}</h4>
+                    <p className="text-xs text-amber-600 font-medium mb-2">{pillar.sanskrit}</p>
+                    <p className="text-sm text-gray-600">{pillar.desc}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Spirit Section */}
+          <div className="mb-12">
+            <div className="flex items-center gap-3 mb-6">
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${pillarsData.spirit.color} flex items-center justify-center`}>
+                <Sun className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900">{pillarsData.spirit.title}</h3>
+                <p className="text-gray-600">{pillarsData.spirit.subtitle}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {pillarsData.spirit.pillars.map((pillar, i) => (
+                <Card key={i} className="hover:shadow-lg transition-shadow border-l-4" style={{ borderLeftColor: pillar.color }}>
+                  <CardContent className="p-5">
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center mb-3"
+                      style={{ backgroundColor: `${pillar.color}20` }}
+                    >
+                      <pillar.icon className="w-5 h-5" style={{ color: pillar.color }} />
+                    </div>
+                    <h4 className="font-semibold text-gray-900">{pillar.name}</h4>
+                    <p className="text-xs text-amber-600 font-medium mb-2">{pillar.sanskrit}</p>
+                    <p className="text-sm text-gray-600">{pillar.desc}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <div className="text-center">
             <Link href="/register">
               <Button size="lg">
-                See All 11 Pillars
+                Start Your 48-Day Journey
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </Link>

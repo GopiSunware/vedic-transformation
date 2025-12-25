@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { registerUser } from "@/lib/auth";
+import { sendWelcomeEmail } from "@/lib/email";
 
 export async function POST(request: Request) {
   try {
@@ -24,6 +25,11 @@ export async function POST(request: Request) {
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
+
+    // Send welcome email with PDF attachment (non-blocking)
+    sendWelcomeEmail(email, name || "").catch((error) => {
+      console.error("Failed to send welcome email:", error);
+    });
 
     return NextResponse.json({ success: true, user: result.user });
   } catch (error) {

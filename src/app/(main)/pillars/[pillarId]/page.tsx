@@ -5,7 +5,7 @@ import { getPillarBySlug, PILLARS } from "@/constants/pillars";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BreathingVisualizer } from "@/components/features/pillars/breathing-visualizer";
-import { Check, ArrowLeft, Clock, Sparkles } from "lucide-react";
+import { Check, ArrowLeft, Clock, Sparkles, Download, FileText } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
 
@@ -206,8 +206,38 @@ export default async function PillarPage({ params }: PillarPageProps) {
 function MorningInitiationContent() {
   return (
     <div className="space-y-6">
+      {/* Download Guide Section */}
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6">
+        <div className="flex items-start gap-4">
+          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center flex-shrink-0">
+            <FileText className="w-7 h-7 text-white" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+              Complete 5 AM Morning Routine Guide
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Download our detailed step-by-step guide to master the Brahma Muhurta practice.
+              Includes preparation tips, breathing exercises, meditation techniques, and a daily checklist.
+            </p>
+            <a
+              href="/guides/5am-morning-routine-guide.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-medium rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all shadow-md hover:shadow-lg"
+            >
+              <Download className="w-4 h-4" />
+              Download Guide
+            </a>
+            <p className="text-xs text-gray-500 mt-3">
+              Tip: Open the guide and use Ctrl+P (or Cmd+P on Mac) to save as PDF
+            </p>
+          </div>
+        </div>
+      </div>
+
       <h3 className="text-xl font-semibold text-gray-900">
-        Morning Routine Checklist
+        Quick Morning Checklist
       </h3>
       <div className="space-y-4">
         {[

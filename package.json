@@ -15,6 +15,8 @@
     "seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.958.0",
+    "@azure/communication-email": "^1.1.0",
     "@prisma/client": "^5.22.0",
     "@tanstack/react-query": "^5.90.12",
     "bcryptjs": "^3.0.3",
@@ -28,6 +30,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.6.0",
+    "resend": "^6.6.0",
     "tailwind-merge": "^3.4.0",
     "zustand": "^5.0.9"
   },
